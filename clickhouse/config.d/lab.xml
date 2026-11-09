@@ -1,0 +1,22 @@
+<clickhouse>
+    <!-- Logs serveur réduits (lab) -->
+    <logger>
+        <level>warning</level>
+    </logger>
+
+    <!-- Garde 20 % de la RAM pour l'OS / Postgres -->
+    <max_server_memory_usage_to_ram_ratio>0.8</max_server_memory_usage_to_ram_ratio>
+
+    <!-- Connexion Postgres déclarée une fois : utilisée par postgresql(pg_bronze, table='...')
+         Aucun mot de passe dans le SQL dbt ; valeurs lues dans les variables d'environnement. -->
+    <named_collections>
+        <pg_bronze>
+            <host from_env="PG_HOST"/>
+            <port>5432</port>
+            <database>eds</database>
+            <schema>bronze</schema>
+            <user>ch_reader</user>
+            <password from_env="PG_CH_READER_PASSWORD"/>
+        </pg_bronze>
+    </named_collections>
+</clickhouse>

@@ -1,0 +1,111 @@
+name: ch-omop-lab
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: lab_postgres
+    shm_size: 2g
+    environment:
+      POSTGRES_USER: ${PG_USER}
+      POSTGRES_PASSWORD: ${PG_PASSWORD}
+      POSTGRES_DB: eds
+      CH_READER_PASSWORD: ${PG_CH_READER_PASSWORD}
+      TZ: UTC
+      PGTZ: UTC
+    command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+      - ./postgres:/lab/postgres:ro
+    ports:
+      - "${PG_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PG_USER} -d eds"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:25.8
+    container_name: lab_clickhouse
+    depends_on:
+      postgres: { condition: service_healthy }
+    environment:
+      CLICKHOUSE_SKIP_USER_SETUP: "1"          # utilisateurs définis dans clickhouse/users.d/lab.xml
+      CH_PASSWORD: ${CH_PASSWORD}
+      CH_READER_UI_PASSWORD: ${CH_READER_UI_PASSWORD}
+      PG_HOST: postgres
+      PG_CH_READER_PASSWORD: ${PG_CH_READER_PASSWORD}
+      TZ: UTC
+    volumes:
+      - ch_data:/var/lib/clickhouse
+      - ./clickhouse/config.d/lab.xml:/etc/clickhouse-server/config.d/lab.xml:ro
+      - ./clickhouse/users.d/lab.xml:/etc/clickhouse-server/users.d/lab.xml:ro
+    ports:
+      - "${CH_HTTP_PORT:-8123}:8123"   # HTTP : dbt, CH-UI, Grafana, DBeaver, /play
+      - "9000:9000"                     # natif : clickhouse-client
+    ulimits:
+      nofile: { soft: 262144, hard: 262144 }
+    healthcheck:
+      test: ["CMD", "clickhouse-client", "--query", "SELECT 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  # Interface web SQL pour ClickHouse (édition communautaire, Apache 2.0) — http://localhost:3488
+  ch-ui:
+    image: ghcr.io/caioricciuti/ch-ui:latest
+    container_name: lab_ch_ui
+    depends_on:
+      clickhouse: { condition: service_healthy }
+    environment:
+      CLICKHOUSE_URL: http://clickhouse:8123
+    volumes:
+      - ch_ui_data:/app/data
+    ports:
+      - "3488:3488"
+
+  # Tableaux de bord (datasource ClickHouse provisionnée) — http://localhost:3000
+  grafana:
+    image: grafana/grafana:11.6.0
+    container_name: lab_grafana
+    depends_on:
+      clickhouse: { condition: service_healthy }
+    environment:
+      GF_INSTALL_PLUGINS: grafana-clickhouse-datasource
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
+      CH_READER_UI_PASSWORD: ${CH_READER_UI_PASSWORD}
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    ports:
+      - "3000:3000"
+
+  # dbt (lancé à la demande : docker compose run --rm dbt build)
+  dbt:
+    build:
+      context: ./dbt
+      args:
+        PIP_INDEX_URL: ${PIP_INDEX_URL:-https://pypi.org/simple}
+    image: ch-omop-lab-dbt:1.0
+    profiles: ["tools"]
+    depends_on:
+      clickhouse: { condition: service_healthy }
+    working_dir: /dbt
+    environment:
+      CH_HOST: clickhouse
+      CH_HTTP_PORT: "8123"
+      CH_USER: ${CH_USER}
+      CH_PASSWORD: ${CH_PASSWORD}
+      DBT_PROFILES_DIR: /dbt
+      DBT_THREADS: ${DBT_THREADS:-4}
+    volumes:
+      - ./dbt:/dbt
+    command: ["build"]
+
+volumes:
+  pg_data:
+  ch_data:
+  ch_ui_data:
+  grafana_data:

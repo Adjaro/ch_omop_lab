@@ -1,0 +1,41 @@
+name: ch_omop_lab
+version: "1.0.0"
+config-version: 2
+profile: ch_omop_lab
+
+model-paths: ["models"]
+macro-paths: ["macros"]
+test-paths: ["tests"]
+target-path: "target"
+clean-targets: ["target", "dbt_packages", "logs"]
+
+vars:
+  pg_collection: pg_bronze            # named collection ClickHouse -> Postgres (clickhouse/config.d/lab.xml)
+  type_concept_ehr: 32817             # Type Concept "EHR"
+  vocabulary_version: "LAB-FICTIF-2026.11"
+  cdm_version_concept_id: 756265      # OMOP CDM v5.4 (à vérifier dans ton Athena)
+  cdm_source_name: "Lab OMOP ClickHouse (données fictives)"
+
+models:
+  ch_omop_lab:
+    bronze:
+      +schema: bronze_ch
+      +materialized: incremental
+      +incremental_strategy: append
+      +engine: MergeTree()
+    silver:
+      +schema: silver
+      +materialized: table
+      +engine: MergeTree()
+    gold_omop:
+      +schema: gold_omop
+      +materialized: table
+      +engine: ReplacingMergeTree(_version, _is_deleted)
+    gold_analytics:
+      +schema: gold_analytics
+      +materialized: table
+      +engine: MergeTree()
+
+tests:
+  ch_omop_lab:
+    +severity: error

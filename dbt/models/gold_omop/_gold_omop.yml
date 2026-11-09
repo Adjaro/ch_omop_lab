@@ -1,0 +1,45 @@
+version: 2
+models:
+  - name: person
+    columns:
+      - name: person_id
+        data_tests: [unique_final]
+  - name: visit_occurrence
+    columns:
+      - name: visit_occurrence_id
+        data_tests: [unique_final]
+      - name: person_id
+        data_tests:
+          - no_orphan_person:
+              arguments: { person_model: ref('person') }
+  - name: observation_period
+    columns:
+      - name: observation_period_id
+        data_tests: [unique_final]
+  - name: condition_occurrence
+    columns:
+      - name: condition_occurrence_id
+        data_tests: [unique_final]
+      - name: person_id
+        data_tests:
+          - no_orphan_person:
+              arguments: { person_model: ref('person') }
+  - name: procedure_occurrence
+    columns:
+      - name: procedure_occurrence_id
+        data_tests: [unique_final]
+  - name: measurement
+    columns:
+      - name: measurement_id
+        data_tests: [unique_final]
+      - name: person_id
+        data_tests:
+          - no_orphan_person:
+              arguments: { person_model: ref('person') }
+  - name: drug_exposure
+    columns:
+      - name: drug_exposure_id
+        data_tests: [unique_final]
+  - name: death
+  - name: care_site
+  - name: cdm_source

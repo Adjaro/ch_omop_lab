@@ -1,0 +1,55 @@
+<clickhouse>
+    <profiles>
+        <!-- Profil ETL (dbt) : déborde sur disque plutôt que d'échouer sur les gros GROUP BY / tris / jointures -->
+        <etl>
+            <max_bytes_before_external_group_by>4000000000</max_bytes_before_external_group_by>
+            <max_bytes_before_external_sort>4000000000</max_bytes_before_external_sort>
+            <max_partitions_per_insert_block>1000</max_partitions_per_insert_block>
+            <max_execution_time>7200</max_execution_time>
+        </etl>
+        <!-- Profil lecture (interfaces graphiques) : lecture seule, réglages de session autorisés -->
+        <lecture>
+            <readonly>2</readonly>
+            <max_execution_time>300</max_execution_time>
+            <max_result_rows>1000000</max_result_rows>
+            <result_overflow_mode>break</result_overflow_mode>
+        </lecture>
+    </profiles>
+
+    <users>
+        <!-- Utilisateur des transformations dbt -->
+        <dbt>
+            <password from_env="CH_PASSWORD"/>
+            <networks><ip>::/0</ip></networks>
+            <profile>etl</profile>
+            <quota>default</quota>
+            <access_management>1</access_management>
+            <named_collection_control>1</named_collection_control>
+            <show_named_collections>1</show_named_collections>
+        </dbt>
+
+        <!-- Utilisateur lecture seule pour CH-UI / Grafana / DBeaver -->
+        <lecteur>
+            <password from_env="CH_READER_UI_PASSWORD"/>
+            <networks><ip>::/0</ip></networks>
+            <profile>lecture</profile>
+            <quota>default</quota>
+            <grants>
+                <query>GRANT SELECT ON bronze_ch.*</query>
+                <query>GRANT SELECT ON silver.*</query>
+                <query>GRANT SELECT ON gold_omop.*</query>
+                <query>GRANT SELECT ON gold_analytics.*</query>
+                <query>GRANT dictGet ON silver.*</query>
+                <query>GRANT SELECT ON system.*</query>
+            </grants>
+        </lecteur>
+
+        <!-- Utilisateur 'default' (sans mot de passe) limité à l'intérieur du conteneur -->
+        <default>
+            <networks replace="replace">
+                <ip>::1</ip>
+                <ip>127.0.0.1</ip>
+            </networks>
+        </default>
+    </users>
+</clickhouse>

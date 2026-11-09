@@ -1,0 +1,17 @@
+version: 2
+models:
+  - name: bz_pa_pat
+    description: Réplique ClickHouse des patients (versions en insertion seule)
+  - name: bz_pa_pas
+    description: Réplique des séjours
+    columns:
+      - name: pas_ips
+        data_tests: [not_null]
+  - name: bz_pa_res_pat
+    description: Réplique des responsabilités M/H (doublons volontaires, dédupliqués en silver)
+  - name: bz_diag
+  - name: bz_actes
+  - name: bz_bio
+  - name: bz_pharma
+  - name: bz_pat_opposition
+  - name: bz_ref_vocab_map

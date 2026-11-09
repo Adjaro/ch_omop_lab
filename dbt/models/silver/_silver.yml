@@ -1,0 +1,32 @@
+version: 2
+models:
+  - name: hub_person
+    description: Hub d'identité patient (person_id stable par IPP)
+    columns:
+      - name: person_id
+        data_tests: [unique, not_null]
+      - name: source_key
+        data_tests: [unique, not_null]
+  - name: hub_visit
+    description: Hub d'identité séjour (visit_occurrence_id stable par IEP)
+    columns:
+      - name: visit_occurrence_id
+        data_tests: [unique, not_null]
+      - name: source_key
+        data_tests: [unique, not_null]
+  - name: slv_patient
+    columns:
+      - name: person_id
+        data_tests: [unique, not_null]
+  - name: slv_mvt_h
+    description: Hébergements dédupliqués (1 ligne par pas_ips + per_deb)
+  - name: slv_stay
+    columns:
+      - name: visit_occurrence_id
+        data_tests: [unique, not_null]
+      - name: person_id
+        data_tests: [not_null]
+  - name: slv_diag
+  - name: slv_acte
+  - name: slv_bio
+  - name: slv_presc

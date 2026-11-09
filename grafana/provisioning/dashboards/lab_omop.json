@@ -1,0 +1,214 @@
+{
+  "uid": "lab-omop",
+  "title": "Lab OMOP — activité et qualité",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "time": {
+    "from": "2018-01-01T00:00:00.000Z",
+    "to": "now"
+  },
+  "refresh": "",
+  "tags": [
+    "omop",
+    "clickhouse"
+  ],
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Patients actifs (gold OMOP)",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 5
+      },
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse-lab"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse-lab"
+          },
+          "editorType": "sql",
+          "format": 1,
+          "queryType": "table",
+          "rawSql": "SELECT count() AS patients FROM gold_omop.person FINAL WHERE _is_deleted = 0"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Résultats de biologie",
+      "gridPos": {
+        "x": 6,
+        "y": 0,
+        "w": 6,
+        "h": 5
+      },
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse-lab"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse-lab"
+          },
+          "editorType": "sql",
+          "format": 1,
+          "queryType": "table",
+          "rawSql": "SELECT sum(nb_resultats) AS resultats FROM gold_analytics.agg_bio_mensuelle"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Dernier lot intégré",
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 6,
+        "h": 5
+      },
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse-lab"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse-lab"
+          },
+          "editorType": "sql",
+          "format": 1,
+          "queryType": "table",
+          "rawSql": "SELECT max(_src_batch_id) AS lot FROM gold_omop.measurement"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Séjours avec UF divergente (%)",
+      "gridPos": {
+        "x": 18,
+        "y": 0,
+        "w": 6,
+        "h": 5
+      },
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse-lab"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse-lab"
+          },
+          "editorType": "sql",
+          "format": 1,
+          "queryType": "table",
+          "rawSql": "SELECT round(100 * countIf(uf_divergente) / count(), 2) AS pct FROM silver.slv_stay"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Séjours par mois et par type",
+      "gridPos": {
+        "x": 0,
+        "y": 5,
+        "w": 24,
+        "h": 9
+      },
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse-lab"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse-lab"
+          },
+          "editorType": "sql",
+          "format": 1,
+          "queryType": "table",
+          "rawSql": "SELECT toDateTime(mois) AS time,\n  sumIf(nb_sejours, type_sejour = 'HC')  AS hospitalisation_complete,\n  sumIf(nb_sejours, type_sejour = 'HJ')  AS hopital_de_jour,\n  sumIf(nb_sejours, type_sejour = 'URG') AS urgences,\n  sumIf(nb_sejours, type_sejour = 'CS')  AS consultations\nFROM gold_analytics.agg_activite_mensuelle\nWHERE mois >= toDate($__fromTime) AND mois <= toDate($__toTime)\nGROUP BY time ORDER BY time"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Biologie : % de résultats hors normes",
+      "gridPos": {
+        "x": 0,
+        "y": 14,
+        "w": 12,
+        "h": 9
+      },
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse-lab"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse-lab"
+          },
+          "editorType": "sql",
+          "format": 1,
+          "queryType": "table",
+          "rawSql": "SELECT toDateTime(mois) AS time,\n  avgIf(pct_hors_normes, code_analyse = 'CRP')   AS CRP,\n  avgIf(pct_hors_normes, code_analyse = 'HBA1C') AS HbA1c,\n  avgIf(pct_hors_normes, code_analyse = 'GLY')   AS glycemie\nFROM gold_analytics.agg_bio_mensuelle\nWHERE mois >= toDate($__fromTime) AND mois <= toDate($__toTime)\nGROUP BY time ORDER BY time"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "table",
+      "title": "Top diagnostics (année la plus récente complète)",
+      "gridPos": {
+        "x": 12,
+        "y": 14,
+        "w": 12,
+        "h": 9
+      },
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse-lab"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse-lab"
+          },
+          "editorType": "sql",
+          "format": 1,
+          "queryType": "table",
+          "rawSql": "SELECT code_cim10, libelle, nb_total, nb_patients\nFROM gold_analytics.agg_diag_annuel\nWHERE annee = (SELECT max(annee) - 1 FROM gold_analytics.agg_diag_annuel)\nORDER BY nb_patients DESC LIMIT 15"
+        }
+      ]
+    }
+  ]
+}
